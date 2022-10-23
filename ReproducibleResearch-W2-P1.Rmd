@@ -1,0 +1,115 @@
+---
+title: "Reproducible Research - Week 2 - Project 1"
+author: "M Bravo"
+date: "2022-10-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction
+
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the “quantified self” movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+
+
+### 1. Code for reading in the dataset and/or processing the data
+
+  
+```{r read data}
+activity <- read.csv(("./activity.csv"))
+activity$date <- as.Date( activity$date)
+```
+  
+### 2. Histogram of the total number os steps taken each day
+
+```{r Histogram 1}
+sbyd <- aggregate( activity$steps, list(activity$date), FUN=sum)
+names( sbyd)<-c("date","steps")
+hist( sbyd$steps, xlab="Steps", main="Steps by day Histogram")
+```
+  
+### 3. Mean and median number of steps taken each day
+
+```{r Mean and Mean}
+meanbyday <- aggregate( activity$steps, list(activity$date), FUN=mean)
+names( meanbyday)=c("date", "mean")
+medianbyday <- aggregate( activity$steps, list(activity$date), FUN=median)
+names( medianbyday)=c("date", "median")
+
+mmbyday <- merge( meanbyday, medianbyday, by="date")
+
+print( mmbyday)
+```
+    
+### 4. Time series plot of the average number of steps taken
+
+```{r Average steps}
+meanbyday <- aggregate( activity$steps, list(activity$date), FUN=mean)
+names( meanbyday)=c("date", "mean")
+plot( meanbyday$date, meanbyday$mean, type ="l", 
+      main="Steps by day average", xlab="Date", ylab="Average steps")
+```
+  
+### 5. The 5-minute interval that, on average, contains the maximum number of steps
+
+copy activity to mean by interval data frame without NA in steps column
+
+```{r Max interval}
+meanbyint <- activity[ !is.na(activity$steps),]
+meanbyint <- aggregate( meanbyint$steps, list(meanbyint$interval), FUN=mean)
+names( meanbyint)=c("interval", "mean")
+
+print( max(meanbyint$mean))
+```
+  
+### 6. Code to describe and show a strategy for imputing missing data
+
+Percentage of NA in each column
+
+```{r imputting }
+colMeans( is.na(activity)) * 100
+```
+
+considering the percentage is high, imputing NA with the median by interval  
+defined in step 5.
+  
+```{r imputting2}
+for ( i in 1:length(activity$steps)) {
+    if ( is.na( activity[ i, "steps"])) {
+        activity[ i, "steps"] <-
+            meanbyint[ meanbyint$interval==activity$interval[i],"mean"]
+    }
+}
+```
+  
+### 7. Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r Histogram 2}
+sbyd <- aggregate( activity$steps, list(activity$date), FUN=sum)
+names( sbyd)<-c("date","steps")
+hist( sbyd$steps, xlab="Steps", main="Steps by day Histogram\n     NA imputed")
+```
+  
+### 8. Panel plot comparing the average number of steps taken per
+5-minute interval across weekdays and weekends
+
+```{r Panle plot}
+library(ggplot2)
+activity$wend <- format( activity$date, format="%u") > 5
+sbyint <- aggregate( activity$steps, list(activity$interval, activity$wend),
+                     FUN=mean)
+names( sbyint) <- c("interval", "wend", "steps")
+days_names <- as_labeller(c(`FALSE`="Week days", `TRUE`="Weekends"))
+ggplot( data=sbyint, aes(interval, steps)) + 
+    geom_line( color = "green", size = 1) + 
+    geom_point( color = "blue") + 
+    labs( title = "Average steps by interval", 
+          subtitle="Week days vs weekends", 
+          y = "average steps", x = "Interval") + 
+    facet_wrap( ~ wend, labeller = days_names)
+```
